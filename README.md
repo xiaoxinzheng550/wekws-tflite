@@ -27,7 +27,7 @@ wekws-tflite/
 ├── bin/                 # 离线和实时示例入口
 ├── frontend/            # MFCC/Fbank、FFT、WAV读取
 ├── kws/                 # TFLite Micro KWS封装
-├── model/               # 示例TFLite模型及嵌入数组
+├── model/               # 默认模型、嵌入数组及备选模型
 ├── examples/audio/      # 16 kHz单声道WAV测试样本
 ├── tools/               # 模型检查和数组转换工具
 ├── third_party/tflm/    # TFLM头文件及分平台静态库
@@ -158,6 +158,11 @@ python tools/convert_tflite_to_cc.py \
 - 两个输出：关键词概率和更新后的缓存。
 - 使用的算子必须已在 `kws/keyword_spotting.cc` 注册。
 - 特征维度和固定窗口必须与运行参数一致。
+
+`model/onnx/`、`model/test/` 和 `model/tflite/` 保留了原工程中的备选模型，
+合计约 8.91 MiB。它们不会被构建系统自动选用；当前默认嵌入模型仍是
+`model/wekws_mdtc_small.tflite`。各文件用途、SHA-256 和替换模型时的注意事项
+见 [`model/README.md`](model/README.md)。
 
 ## 使用其他平台的 TFLite Micro
 
