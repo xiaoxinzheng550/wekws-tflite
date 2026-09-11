@@ -31,6 +31,7 @@ wekws-tflite/
 ├── examples/audio/      # 16 kHz单声道WAV测试样本
 ├── tools/               # 模型检查和数组转换工具
 ├── third_party/tflm/    # TFLM头文件及分平台静态库
+├── third_party/portaudio/ # 官方PortAudio v19.7.0源码
 ├── CMakeLists.txt
 ├── requirements.txt
 └── LICENSE
@@ -38,7 +39,7 @@ wekws-tflite/
 
 ## 快速开始
 
-### 1. 编译离线示例
+### 1. 编译
 
 要求：CMake 3.16+、支持 C++14 的编译器。
 
@@ -48,9 +49,40 @@ cd wekws-tflite
 ./build.sh
 ```
 
-默认支持 macOS arm64 和 Linux x86_64。编译结果位于 `build/bin/`。
+不带子命令时会同时编译离线与实时程序。也可以只编译其中一个目标：
 
-### 2. 测试 WAV
+```bash
+./build.sh              # 全量编译 kws_main 和 stream_kws_main
+./build.sh kws          # 只编译离线 WAV 程序 kws_main
+./build.sh kws_stream   # 只编译实时程序 stream_kws_main
+```
+
+默认支持 macOS arm64 和 Linux x86_64，编译结果位于 `build/bin/`。额外的
+CMake 参数可以放在子命令后，例如 `./build.sh kws -DCMAKE_BUILD_TYPE=Debug`。
+
+CMake 的构建缓存会记录源码绝对路径。如果工程连同旧 `build/` 一起移动或
+复制到其他目录，`build.sh` 会识别路径变化，自动删除默认的生成目录并重新
+配置；源码、模型和测试音频不会受影响。使用自定义 `BUILD_DIR` 时，为避免
+误删外部目录，脚本只会提示换用新的构建目录，不会自动清理。
+
+### 2. 清理构建文件
+
+删除默认的 `build/` 生成目录：
+
+```bash
+./build.sh clean
+```
+
+如果编译时使用了自定义 `BUILD_DIR`，清理时需要指定同一个目录：
+
+```bash
+BUILD_DIR=/tmp/wekws-build ./build.sh clean
+```
+
+`clean` 只删除构建输出，保留源码、模型、测试音频和 Python 环境。出于安全
+考虑，脚本拒绝将项目根目录或 `/` 作为清理目标。
+
+### 3. 测试 WAV
 
 输入必须是 16 kHz、单声道 PCM WAV：
 
@@ -64,17 +96,22 @@ cd wekws-tflite
 仓库附带多个正样本、口语干扰和噪声测试文件，全部为 16 kHz、
 16-bit、单声道 PCM WAV，详见 `examples/audio/README.md`。
 
-### 3. 实时麦克风检测
+### 4. 实时麦克风检测
 
 ```bash
-./build.sh -DWEKWS_BUILD_STREAM=ON
+./build.sh kws_stream
 ```
 
-macOS 构建时会由 CMake 下载 PortAudio v19.7.0，并使用系统默认输入设备：
+macOS 构建使用仓库内置的 PortAudio v19.7.0 源码，不需要在配置阶段联网，
+并使用系统默认输入设备：
 
 ```bash
 ./build/bin/stream_kws_main default mfcc 80 0.80 50
 ```
+
+`build.sh` 不会下载 PortAudio。开启实时模式时，它会先检查
+`third_party/portaudio/CMakeLists.txt`，缺失时直接报错退出。PortAudio 的构建
+中间文件位于 `build/third_party/portaudio/`；`build/fc_base/` 不再使用。
 
 Linux 使用系统的 `arecord`，需要先安装 ALSA utilities：
 
@@ -83,6 +120,13 @@ Linux 使用系统的 `arecord`，需要先安装 ALSA utilities：
 ```
 
 最后一个参数是滑动步长，单位为特征帧；50 帧约为 500 ms。
+
+如需改用另一份 PortAudio 源码，可以显式指定：
+
+```bash
+./build.sh kws_stream \
+  -DWEKWS_PORTAUDIO_SOURCE_DIR=/absolute/path/to/portaudio
+```
 
 ## Python 工具
 
@@ -149,6 +193,29 @@ PCM回调
 - 根据模型实际峰值调整 Tensor Arena。
 - 只注册模型真实使用的 TFLM 算子。
 - 用目标语料重新标定阈值、连续命中次数和冷却时间。
+
+## 第三方依赖版本与修改说明
+
+仓库中的依赖取自原工程
+`runtime/tflite_micro_runtime/fc_base`，发布前进行了逐文件核对：
+
+- `third_party/portaudio`：PortAudio 官方 `v19.7.0`，提交
+  `147dd722548358763a8b649b3e4b41dfffbcfbb6`。源码未修改，仅排除了
+  `.git`、构建产物、测试、示例、文档和 macOS `._*` 元数据；保留实际构建
+  所需的 `CMakeLists.txt`、`cmake_support`、`include`、`src` 和原许可证。
+- `third_party/tflm/include`：与原工程的 131 个 TFLite Micro 头文件逐文件一致。
+- `third_party/tflm/lib/macos-arm64/libtensorflow-microlite.a`：对应原文件
+  `libtensorflow-microlite.a`，SHA-256 为
+  `7e78cc5d80207e88eece4fa5c4b5fb553cf65322b463c4dc4a6cf181f38e69e1`。
+- Linux x86_64、ARMv7 glibc 和 ARMv7 musl 静态库也只是按目标平台重命名
+  归档，二进制内容未修改；完整校验值见 `third_party/tflm/README.md`。
+- 原目录中的 `libtensorflow-microlite.a.arm32` 没有被原 CMake 使用，且无法
+  从文件名可靠确定 ABI，因此没有作为默认库发布。需要该特定产物时请通过
+  `-DTFLM_LIBRARY=/absolute/path/to/library.a` 显式指定，并确保工具链和 ABI 匹配。
+
+项目对第三方源码本身没有打补丁。`cmake/portaudio.cmake` 通过
+`add_subdirectory()` 直接加入本地源码，关闭不需要的共享库/测试/示例，并
+兼容 CMake 4 的策略要求；工程中不再包含 PortAudio 的网络下载逻辑。
 
 ## 第三方代码与模型
 

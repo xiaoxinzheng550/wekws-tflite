@@ -3,13 +3,16 @@ wekws-tflite
 This project contains code derived from WeKWS, licensed under the Apache
 License 2.0. Original project: https://github.com/wenet-e2e/wekws
 
-The bundled TensorFlow Lite Micro headers and static libraries are derived
-from TensorFlow Lite for Microcontrollers, licensed under the Apache License
-2.0. Original project: https://github.com/tensorflow/tflite-micro
+The bundled TensorFlow Lite Micro headers and static libraries are copied
+unchanged from the original local WeKWS runtime dependency bundle. They are
+derived from TensorFlow Lite for Microcontrollers and licensed under the
+Apache License 2.0. Original project: https://github.com/tensorflow/tflite-micro
 
-The optional live microphone demo downloads PortAudio v19.7.0 at CMake
-configure time on macOS. PortAudio is distributed under its own permissive
-license: https://github.com/PortAudio/portaudio
+The optional live microphone demo bundles the unmodified build sources from
+PortAudio v19.7.0, commit 147dd722548358763a8b649b3e4b41dfffbcfbb6.
+Non-build documentation, examples, tests, Git metadata, and macOS AppleDouble
+files were omitted. PortAudio is distributed under its own permissive license;
+see third_party/portaudio/LICENSE.txt.
 
 The bundled wake-word model and WAV samples are intended as technical
 demonstrations. Users must review the rights of the training data, model

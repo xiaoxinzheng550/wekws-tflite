@@ -1,10 +1,13 @@
-.PHONY: all stream clean
+.PHONY: all kws stream clean
 
 all:
 	./build.sh
 
+kws:
+	./build.sh kws
+
 stream:
-	./build.sh -DWEKWS_BUILD_STREAM=ON
+	./build.sh kws_stream
 
 clean:
-	cmake -E remove_directory build
+	./build.sh clean

@@ -3,8 +3,6 @@ project(wekws_tflite_micro VERSION 0.1.0 LANGUAGES C CXX)
 
 option(WEKWS_BUILD_STREAM "Build the live microphone demo" OFF)
 
-include(FetchContent)
-set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/fc_base")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 14)
