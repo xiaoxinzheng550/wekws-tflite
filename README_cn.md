@@ -15,10 +15,10 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 
 - TFLite Micro C++ 推理，支持 float32、int8 和 uint8 张量。
 - 80 维 MFCC、40 维 Log-Mel Fbank 前端。
-- 固定 256 帧滑动窗口推理和重复唤醒抑制。
+- 滑动窗口推理和重复唤醒抑制。
 - WAV 文件离线测试。
 - macOS PortAudio、Linux `arecord` 实时采集示例。
-- `.tflite` 转 C++ 静态数组工具。
+- `.tflite` 转 C++ 静态数组工具脚本。
 - 随仓库提供 macOS arm64、Linux x86_64 和 ARMv7 预编译 TFLM 库。
 
 ## 项目进度
@@ -31,8 +31,8 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 | 已完成 | WAV 离线检测及 macOS PortAudio 实时麦克风检测 |
 | 已完成 | 按平台选择 macOS arm64、Linux x86_64 和 ARMv7 TFLM 静态库 |
 | 进行中 | Linux x86_64 实机编译、录音和端到端唤醒验证 |
-| 进行中 | 将历史 NuttX 板端的音频采集、线程同步、固定内存和业务回调适配整理到本仓库 |
 | 待完成 | 补充 ONNX 转 TFLite 脚本及模型转换流程 |
+| 待完成 | 优化mdtc_small唤醒精度 |
 
 ## 待优化问题
 
@@ -41,16 +41,16 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 
 ## 端侧移植与模型推理延迟
 
-移植进度和模型性能是两个不同维度：平台表记录音频采集、构建和端侧接口是否完成；模型表记录每个模型在不同平台上的纯推理延迟。以下数据用于记录当前验证进度，不代表不同设备上的统一性能指标。
+模型表记录每个模型在不同平台上的纯推理延迟。以下数据用于记录当前验证进度，不代表不同设备上的统一性能指标。
 
 ### 平台移植进度
 
 | 平台 | 当前状态 | 采集/运行方式 | 说明 |
 | --- | --- | --- | --- |
 | macOS arm64 | 已验证离线推理 | WAV；实时采集使用 PortAudio | 当前主要开发和验证平台 |
-| Linux x86_64 | 已提供构建依赖，待实机验证 | WAV；实时采集使用 `arecord` | 已附带 glibc 平台 TFLM 静态库，仍需验证编译、采集和端到端唤醒 |
-| Linux i.MX6ULL/ARMv7 | 已完成历史板端流式验证 | `arecord` 或板端 PCM 接口 | 已测试 DS-TCN、MDTC 和 MDTC-small；构建时需要根据目标系统的 C 运行库选择 ARMv7 glibc 或 musl TFLM 静态库 |
-| NuttX/ARMv7 | 已完成历史工程模型推理验证，待整理到本仓库 | 板端 PCM/DMA 回调 | 已测试 DS-TCN 和 MDTC-small；Linux ARMv7 静态库不能直接用于 NuttX，需要使用 NuttX 工具链重新构建 TFLM |
+| Linux x86_64 | 已提供构建依赖，待实机验证 | WAV；实时采集使用 `arecord` | 仍待验证 |
+| Linux i.MX6ULL/ARMv7 | 已完成开发板端的流式验证 | `arecord` 或板端 PCM 接口 | 已测试 DS-TCN、MDTC 和 MDTC-small |
+| NuttX/ARMv7 | 已完成模型推理验证 | 板端 PCM 回调 | 已测试 DS-TCN 和 MDTC-small |
 
 ### 不同模型的推理延迟
 
@@ -59,8 +59,8 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 | 模型 | 输入特征 | macOS arm64 | Linux x86_64 | Linux i.MX6ULL/ARMv7 | NuttX/ARMv7 | 当前验证情况 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ds_tcn_fixed_quantized_backup.tflite` | 40 维 Fbank；256 帧 | 约 100 ms | 待测试 | 约 1 s | 约 6 s | macOS 和 i.MX6ULL 均已唤醒成功；该模型不适合当前低资源板端配置 |
-| `avg_mdtc_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约520 ms | 待测试 | i.MX6ULL 使用 600 ms 步长时算力占用约 86.6%，实时余量较小 |
-| `avg_mdtc_small_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约150 ms | 约730 ms（208 MHz） | i.MX6ULL 使用 400 ms 步长时算力占用约 35%；NuttX 使用 600 ms 步长时无法持续跟上连续语音 |
+| `avg_mdtc_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约520 ms | 待测试 | 推理延迟下降，唤醒精度下降 |
+| `avg_mdtc_small_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约150 ms | 约500 ms | 推理延迟下降，唤醒精度极差 |
 
 ## 目录
 
@@ -101,7 +101,7 @@ python -m pip check
 python tools/verify_tflite.py
 ```
 
-如果 Conda 环境位于 macOS 的 FAT/exFAT 外接盘，文件系统可能生成大量`._*` AppleDouble 元数据，使 `pip` 报 `Ignoring invalid distribution`，或使`conda list` 报 `UnicodeDecodeError`。这不是项目缺少 Python 依赖。优先把环境创建在 APFS/本机磁盘；已有环境可退出后使用 `dot_clean -m` 清理：
+如果 Conda 环境位于 macOS 的 FAT/exFAT 外接硬盘，文件系统可能生成大量`._*` AppleDouble 元数据，使 `pip` 报 `Ignoring invalid distribution`，或使`conda list` 报 `UnicodeDecodeError`。这不是项目缺少 Python 依赖。优先把环境创建在 APFS/本机磁盘；已有环境可退出后使用 `dot_clean -m` 清理：
 
 ```bash
 conda deactivate
