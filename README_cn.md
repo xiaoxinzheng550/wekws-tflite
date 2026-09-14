@@ -65,7 +65,7 @@ python tools/convert_tflite_to_cc.py \
 `model/onnx/` 和 `model/tflite/` 保留了原工程中的模型文件，合计约
 3.33 MiB。当前 `model_data.cc` 嵌入的是量化 DS-TCN 模型；其他模型不会被
 构建系统自动选用。各文件用途、正确测试参数、SHA-256 和替换注意事项
-见 [`model/README.md`](model/README.md)。
+见 [`model/README_cn.md`](model/README_cn.md)。
 
 
 ## 功能
@@ -152,7 +152,7 @@ BUILD_DIR=/tmp/wekws-build ./build.sh clean
 
 参数依次为：特征类型、特征维度、固定窗口帧数、WAV 文件。
 仓库附带多个正样本、口语干扰和噪声测试文件，全部为 16 kHz、
-16-bit、单声道 PCM WAV，详见 `examples/audio/README.md`。
+16-bit、单声道 PCM WAV，详见 `examples/audio/README_cn.md`。
 
 ### 4. 实时麦克风检测
 
@@ -235,7 +235,7 @@ PCM回调
   `libtensorflow-microlite.a`，SHA-256 为
   `7e78cc5d80207e88eece4fa5c4b5fb553cf65322b463c4dc4a6cf181f38e69e1`。
 - Linux x86_64、ARMv7 glibc 和 ARMv7 musl 静态库也只是按目标平台重命名
-  归档，二进制内容未修改；完整校验值见 `third_party/tflm/README.md`。
+  归档，二进制内容未修改；完整校验值见 `third_party/tflm/README_cn.md`。
 - 原目录中的 `libtensorflow-microlite.a.arm32` 没有被原 CMake 使用，且无法
   从文件名可靠确定 ABI，因此没有作为默认库发布。需要该特定产物时请通过
   `-DTFLM_LIBRARY=/absolute/path/to/library.a` 显式指定，并确保工具链和 ABI 匹配。
@@ -253,3 +253,4 @@ PCM回调
 ## License
 
 [Apache License 2.0](LICENSE)
+

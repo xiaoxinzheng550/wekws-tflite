@@ -111,8 +111,8 @@ void PrintUsage(const char* program) {
             << " [alsa_device] [mfcc|fbank] [feature_dim] [threshold]"
                " [stride_frames]\n"
             << "Defaults: audio_device=" << kDefaultAudioDevice
-            << " feat_type=mfcc "
-               "feature_dim=80 threshold=0.80 stride_frames=50\n";
+            << " feat_type=fbank "
+               "feature_dim=40 threshold=0.80 stride_frames=50\n";
 }
 
 }  // namespace
@@ -124,8 +124,8 @@ int main(int argc, char* argv[]) {
   }
 
   const std::string audio_device = argc > 1 ? argv[1] : kDefaultAudioDevice;
-  const std::string feat_type = argc > 2 ? argv[2] : "mfcc";
-  const int feature_dim = argc > 3 ? std::stoi(argv[3]) : 80;
+  const std::string feat_type = argc > 2 ? argv[2] : "fbank";
+  const int feature_dim = argc > 3 ? std::stoi(argv[3]) : 40;
   const float threshold = argc > 4 ? std::stof(argv[4]) : 0.80f;
   const int stride_frames =
       argc > 5 ? std::stoi(argv[5]) : kDefaultStrideFrames;

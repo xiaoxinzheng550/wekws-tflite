@@ -1,2 +1,4 @@
-numpy>=1.24
-tensorflow>=2.15
+# Optional Python model-inspection dependencies.
+# These versions match the validated wekws environment (Python 3.10).
+numpy==1.24.0
+tensorflow==2.16.2

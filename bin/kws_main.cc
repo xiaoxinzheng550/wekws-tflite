@@ -30,8 +30,8 @@ int main(int argc, char* argv[]) {
     LOG(INFO) << "Note: Model is embedded in the binary (model_data.cc)";
   }
 
-  // 三参数形式兼容原命令，默认匹配当前嵌入的 MDTC/MFCC 模型。
-  const std::string feat_type = argc == 5 ? argv[1] : "mfcc";
+  // 三参数形式兼容原命令，默认匹配当前嵌入的 DS-TCN/Fbank 模型。
+  const std::string feat_type = argc == 5 ? argv[1] : "fbank";
   const int arg_offset = argc == 5 ? 1 : 0;
   const int feature_dim = std::stoi(argv[1 + arg_offset]);
   const int batch_size = std::stoi(argv[2 + arg_offset]);

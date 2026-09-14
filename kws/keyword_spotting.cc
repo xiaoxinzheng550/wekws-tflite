@@ -53,6 +53,7 @@ bool KeywordSpotting::Init(const unsigned char* model_data, size_t model_size) {
   op_resolver_->AddLogistic();
   op_resolver_->AddRound();
   op_resolver_->AddStridedSlice();
+  op_resolver_->AddGather();
 
   // 3. 创建解释器
   interpreter_ = new tflite::MicroInterpreter(

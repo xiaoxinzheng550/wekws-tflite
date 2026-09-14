@@ -21,7 +21,8 @@ def main():
         "model",
         nargs="?",
         type=Path,
-        default=project_dir / "model" / "wekws_mdtc_small.tflite",
+        default=(project_dir / "model" / "tflite"
+                 / "ds_tcn_fixed_quantized_backup.tflite"),
     )
     args = parser.parse_args()
 
