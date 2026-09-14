@@ -1,24 +1,15 @@
 # wekws-tflite
 
-基于 [WeKWS](https://github.com/wenet-e2e/wekws) 和 TensorFlow Lite Micro
-的轻量级关键词唤醒推理示例，提供离线 WAV 检测、实时麦克风检测和嵌入式
-模型数组生成工具。
+基于 [WeKWS](https://github.com/wenet-e2e/wekws) 和 TensorFlow Lite Micro的轻量级关键词唤醒推理示例，提供离线 WAV 检测、实时麦克风检测和嵌入式模型数组生成工具。
 
 ## 上游项目与数据集
 
 - WeKWS 原始项目：[wenet-e2e/wekws](https://github.com/wenet-e2e/wekws)
 - “你好问问”数据集：[MobvoiHotwords（OpenSLR SLR87）](https://www.openslr.org/87/)
 
-MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi Xiaowen”和
-“Nihao Wenwen（你好问问）”关键词语音及非关键词语音。下载、许可和数据集
-详细说明以 OpenSLR 页面为准。
+MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi Xiaowen”和“Nihao Wenwen（你好问问）”关键词语音及非关键词语音。下载、许可和数据集详细说明以 OpenSLR 页面为准。
 
-当前嵌入的是量化 DS-TCN 模型
-`model/tflite/ds_tcn_fixed_quantized_backup.tflite`，输入为 16 kHz
-单声道 PCM 提取的 40 维 Fbank，固定输入窗口为 256 帧。该模型内部包含
-量化/反量化节点，但输入、缓存和输出接口仍为 float32。仓库专注 KWS 推理，不内置
-SpeexDSP、AEC、降噪或 AGC；产品使用时可在送入特征提取器前接入自己的
-音频前处理模块。
+当前嵌入的是量化 DS-TCN 模型`model/tflite/ds_tcn_fixed_quantized_backup.tflite`，输入为 16 kHz单声道 PCM 提取的 40 维 Fbank，固定输入窗口为 256 帧。该模型内部包含量化/反量化节点，但输入、缓存和输出接口仍为 float32。仓库专注 KWS 推理，不内置SpeexDSP、AEC、降噪或 AGC；产品使用时可在送入特征提取器前接入自己的音频前处理模块。
 
 ## 功能
 
@@ -120,17 +111,11 @@ cd wekws-tflite
 ./build.sh kws          # 只编译离线 WAV 程序 kws_main
 ./build.sh kws_stream   # 只编译实时程序 stream_kws_main
 ```
-`build.sh` 不会下载 PortAudio。开启实时模式时，它会先检查
-`third_party/portaudio/CMakeLists.txt`，缺失时直接报错退出。PortAudio 的构建
-中间文件位于 `build/third_party/portaudio/`。
+`build.sh` 不会下载 PortAudio。开启实时模式时，它会先检查`third_party/portaudio/CMakeLists.txt`，缺失时直接报错退出。PortAudio 的构建中间文件位于 `build/third_party/portaudio/`。
 
-默认支持 macOS arm64 和 Linux x86_64，编译结果位于 `build/bin/`。额外的
-CMake 参数可以放在子命令后，例如 `./build.sh kws -DCMAKE_BUILD_TYPE=Debug`。
+默认支持 macOS arm64 和 Linux x86_64，编译结果位于 `build/bin/`。额外的CMake 参数可以放在子命令后，例如 `./build.sh kws -DCMAKE_BUILD_TYPE=Debug`。
 
-CMake 的构建缓存会记录源码绝对路径。如果工程连同旧 `build/` 一起移动或
-复制到其他目录，`build.sh` 会识别路径变化，自动删除默认的生成目录并重新
-配置；源码、模型和测试音频不会受影响。使用自定义 `BUILD_DIR` 时，为避免
-误删外部目录，脚本只会提示换用新的构建目录，不会自动清理。
+CMake 的构建缓存会记录源码绝对路径。如果工程连同旧 `build/` 一起移动或复制到其他目录，`build.sh` 会识别路径变化，自动删除默认的生成目录并重新配置；源码、模型和测试音频不会受影响。使用自定义 `BUILD_DIR` 时，为避免误删外部目录，脚本只会提示换用新的构建目录，不会自动清理。
 
 如需改用另一份 PortAudio 源码，可以显式指定：
 
@@ -141,10 +126,7 @@ CMake 的构建缓存会记录源码绝对路径。如果工程连同旧 `build/
 
 ### 使用其他平台的 TFLite Micro 依赖
 
-预编译静态库不能跨平台通用。如果你的系统不在默认支持范围，需要使用目标
-平台工具链重新构建 TFLite Micro，并显式指定头文件和静态库。平台选择、
-ARMv7 示例以及当前模型所需的两项兼容修改，详见
-[`third_party/tflm/README_cn.md`](third_party/tflm/README_cn.md)。
+预编译静态库不能跨平台通用。如果你的系统不在默认支持范围，需要使用目标平台工具链重新构建 TFLite Micro，并显式指定头文件和静态库。平台选择、ARMv7 示例以及当前模型所需的两项兼容修改，详见[`third_party/tflm/README_cn.md`](third_party/tflm/README_cn.md)。
 
 ### 2. 清理构建文件
 
@@ -160,8 +142,7 @@ ARMv7 示例以及当前模型所需的两项兼容修改，详见
 BUILD_DIR=/tmp/wekws-build ./build.sh clean
 ```
 
-`clean` 只删除构建输出，保留源码、模型、测试音频和 Python 环境。出于安全
-考虑，脚本拒绝将项目根目录或 `/` 作为清理目标。
+`clean` 只删除构建输出，保留源码、模型、测试音频和 Python 环境。出于安全考虑，脚本拒绝将项目根目录或 `/` 作为清理目标。
 
 ### 3. 测试 WAV
 
@@ -171,9 +152,7 @@ BUILD_DIR=/tmp/wekws-build ./build.sh clean
 ./build/bin/kws_main fbank 40 256 examples/audio/0000e12e2402775c2d506d77b6dbb411.wav
 ```
 
-参数依次为：特征类型、特征维度、固定窗口帧数、WAV 文件。
-仓库附带多份唤醒、口语和噪声测试音频，全部为 16 kHz、16-bit、单声道
-PCM WAV。
+参数依次为：特征类型、特征维度、固定窗口帧数、WAV 文件。仓库附带多份唤醒、口语和噪声测试音频，全部为 16 kHz、16-bit、单声道PCM WAV。
 
 ### 4. 实时麦克风检测
 
@@ -231,20 +210,13 @@ PCM回调
   从文件名可靠确定 ABI，因此没有作为默认库发布。需要该特定产物时请通过
   `-DTFLM_LIBRARY=/absolute/path/to/library.a` 显式指定，并确保工具链和 ABI 匹配。
 
-PortAudio 源码本身没有打补丁。`cmake/portaudio.cmake` 通过
-`add_subdirectory()` 直接加入本地源码，关闭不需要的共享库、测试和示例，
-并兼容 CMake 4 的策略要求；工程中不再包含 PortAudio 的网络下载逻辑。
+PortAudio 源码本身没有打补丁。`cmake/portaudio.cmake` 通过`add_subdirectory()` 直接加入本地源码，关闭不需要的共享库、测试和示例，并兼容 CMake 4 的策略要求；工程中不再包含 PortAudio 的网络下载逻辑。
 
-仓库附带的 TFLite Micro 静态库已经包含当前量化模型所需的两项类型兼容
-修改：补充 `FLOAT32 -> UINT8` 量化，以及 `CAST` 的 `UINT8` 输入和输出支持。
-如果改用官方源码自行构建 TFLM，需要重新应用这些修改；具体说明见
-[`third_party/tflm/README_cn.md`](third_party/tflm/README_cn.md)。
+仓库附带的 TFLite Micro 静态库已经包含当前量化模型所需的两项类型兼容修改：补充 `FLOAT32 -> UINT8` 量化，以及 `CAST` 的 `UINT8` 输入和输出支持。如果改用官方源码自行构建 TFLM，需要重新应用这些修改；具体说明见[`third_party/tflm/README_cn.md`](third_party/tflm/README_cn.md)。
 
 ## 第三方代码与模型
 
-代码基于 WeKWS，按 Apache-2.0 发布。TFLite Micro 和 PortAudio 保留各自
-许可证，具体见 [NOTICE](NOTICE)。示例模型用于技术演示；用于商业产品前，
-请自行确认训练数据和模型权重的再分发权利。
+代码基于 WeKWS，按 Apache-2.0 发布。TFLite Micro 和 PortAudio 保留各自许可证，具体见 [NOTICE](NOTICE)。示例模型用于技术演示；用于商业产品前，请自行确认训练数据和模型权重的再分发权利。
 
 ## License
 

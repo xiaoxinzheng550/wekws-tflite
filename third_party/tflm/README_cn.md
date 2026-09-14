@@ -1,7 +1,6 @@
 # TensorFlow Lite Micro 依赖说明
 
-本目录保存 `wekws-tflite` 编译和运行时使用的 TensorFlow Lite Micro（TFLM）
-文件，包括：
+本目录保存 `wekws-tflite` 编译和运行时使用的 TensorFlow Lite Micro（TFLM）文件，包括：
 
 ```text
 third_party/tflm/
@@ -12,15 +11,11 @@ third_party/tflm/
 └── README_cn.md
 ```
 
-TFLM 负责加载 `.tflite` 模型、分配 Tensor Arena、执行模型算子。这里的
-`libtensorflow-microlite.a` 是静态库：编译 `kws_main` 时，链接器会把程序
-实际使用的 TFLM 代码合并进最终可执行文件，运行时不需要再安装 TensorFlow、
-NumPy 或动态链接库。
+TFLM 负责加载 `.tflite` 模型、分配 Tensor Arena、执行模型算子。这里的 `libtensorflow-microlite.a` 是静态库：编译 `kws_main` 时，链接器会把程序实际使用的 TFLM 代码合并进最终可执行文件，运行时不需要再安装 TensorFlow、NumPy 或动态链接库。
 
 ## 预编译静态库
 
-同一个静态库不能跨平台通用。操作系统、CPU 架构、编译器 ABI 或 C 运行库不
-匹配时，可能出现“文件格式不识别”“符号未定义”或程序无法启动等问题。
+同一个静态库不能跨平台通用。操作系统、CPU 架构、编译器 ABI 或 C 运行库不匹配时，可能出现“文件格式不识别”“符号未定义”或程序无法启动等问题。
 
 | 运行平台 | C 运行库/ABI | 仓库内的静态库 | SHA-256 |
 | --- | --- | --- | --- |
@@ -37,8 +32,7 @@ NumPy 或动态链接库。
 - Apple Silicon Mac：`lib/macos-arm64/libtensorflow-microlite.a`
 - Linux x86_64：`lib/linux-x86_64/libtensorflow-microlite.a`
 
-ARMv7 库虽然已放在仓库中，但构建脚本不会猜测目标设备使用 glibc 还是 musl，
-需要显式指定。例如，ARMv7 glibc 工具链使用：
+ARMv7 库虽然已放在仓库中，但构建脚本不会猜测目标设备使用 glibc 还是 musl，需要显式指定。例如，ARMv7 glibc 工具链使用：
 
 ```bash
 cmake -S . -B build-arm \
@@ -53,13 +47,11 @@ ARMv7 musl 工具链则将路径改为：
 third_party/tflm/lib/linux-armv7-musleabihf/libtensorflow-microlite.a
 ```
 
-指定静态库只能解决文件选择问题，不能把本机编译器变成交叉编译器。编译 ARMv7
-程序时仍然需要配置对应的交叉编译工具链。
+指定静态库只能解决文件选择问题，不能把本机编译器变成交叉编译器。编译 ARMv7 程序时仍然需要配置对应的交叉编译工具链。
 
 ## SHA-256 是什么
 
-SHA-256 是一种文件摘要算法，可以把任意大小的文件计算成固定长度的 64 位
-十六进制字符串。例如表格中的：
+SHA-256 是一种文件摘要算法，可以把任意大小的文件计算成固定长度的 64 位十六进制字符串。例如表格中的：
 
 ```text
 7e78cc5d80207e88eece4fa5c4b5fb553cf65322b463c4dc4a6cf181f38e69e1
@@ -70,8 +62,7 @@ SHA-256 是一种文件摘要算法，可以把任意大小的文件计算成固
 - 两个文件内容完全相同，计算出的 SHA-256 也相同。
 - 文件哪怕只改变一个字节，结果通常也会完全不同。
 - 它可以发现下载不完整、文件损坏或拿错版本。
-- 它不是文件大小、版本号，也不能单独证明文件来源绝对可信；可信的校验值仍应
-  来自可信的项目页面或发布说明。
+- 它不是文件大小、版本号，也不能单独证明文件来源绝对可信；可信的校验值仍应来自可信的项目页面或发布说明。
 
 在 macOS 上校验全部静态库：
 
@@ -87,19 +78,13 @@ find third_party/tflm/lib -name 'libtensorflow-microlite.a' \
   -exec sha256sum {} \;
 ```
 
-将命令输出的 64 位字符串与表格中对应平台的一项比较即可。相同表示文件内容
-一致，不同表示文件不是同一份，应先确认是否损坏、被修改或选择了错误版本。
+将命令输出的 64 位字符串与表格中对应平台的一项比较即可。相同表示文件内容一致，不同表示文件不是同一份，应先确认是否损坏、被修改或选择了错误版本。
 
 ## 当前量化模型所需的 TFLM 兼容性修改
 
-本仓库附带的预编译 TFLM 静态库已经包含以下两项兼容性修改，直接使用仓库
-静态库时不需要再次修改。GitHub 官方 `tflite-micro` 当前默认实现仍缺少
-`FLOAT32 -> UINT8` 量化分支和 `CAST` 的 `UINT8` 分支。因此，如果以后不使用
-本仓库的预编译静态库，而是从官方源码重新构建，需要重新应用这两项修改，
-或者重新导出模型以消除相关节点。
+本仓库附带的预编译 TFLM 静态库已经包含以下两项兼容性修改，直接使用仓库静态库时不需要再次修改。GitHub 官方 `tflite-micro` 当前默认实现仍缺少 `FLOAT32 -> UINT8` 量化分支和 `CAST` 的 `UINT8` 分支。因此，如果以后不使用本仓库的预编译静态库，而是从官方源码重新构建，需要重新应用这两项修改，或者重新导出模型以消除相关节点。
 
-当前嵌入的 `ds_tcn_fixed_quantized_backup.tflite` 在模型内部重复使用以下路径
-（可以用 Netron 查看模型结构）：
+当前嵌入的 `ds_tcn_fixed_quantized_backup.tflite` 在模型内部重复使用以下路径（可以用 Netron 查看模型结构）：
 
 ```text
 FLOAT32 -> QUANTIZE -> UINT8 -> CAST(UINT8到UINT8) -> DEQUANTIZE -> FLOAT32
@@ -108,12 +93,7 @@ FLOAT32 -> QUANTIZE -> UINT8 -> CAST(UINT8到UINT8) -> DEQUANTIZE -> FLOAT32
 相对于所用的 TFLM 基础源码，需要补充两项类型支持：
 
 1. `quantize_common.cc`：在浮点输入分支增加 `FLOAT32 -> UINT8`。
-2. `cast.cc`：在输入和输出分支都增加 `UINT8`，支持模型中的
-   `CAST(UINT8 -> UINT8)` 数据复制。
+2. `cast.cc`：在输入和输出分支都增加 `UINT8`，支持模型中的 `CAST(UINT8 -> UINT8)` 数据复制。
 
-模型还包含 `INT8 -> FLOAT32` 和 `UINT8 -> FLOAT32` 两种反量化。默认
-`Register_DEQUANTIZE()` 已经支持这两条路径，因此不需要修改
-`dequantize.cc`。专用的 `Register_DEQUANTIZE_INT8()` 属于算子裁剪或模型编译器
-适配。
-
+模型还包含 `INT8 -> FLOAT32` 和 `UINT8 -> FLOAT32` 两种反量化。默认 `Register_DEQUANTIZE()` 已经支持这两条路径，因此不需要修改 `dequantize.cc`。专用的 `Register_DEQUANTIZE_INT8()` 属于算子裁剪或模型编译器适配。
 
