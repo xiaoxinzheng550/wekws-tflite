@@ -19,4 +19,7 @@ include(tflite_micro)
 
 add_subdirectory(frontend)
 add_subdirectory(kws)
+if(WEKWS_BUILD_STREAM)
+  add_subdirectory(stream)
+endif()
 add_subdirectory(bin)

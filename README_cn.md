@@ -70,8 +70,15 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 ```text
 wekws-tflite/
 ├── bin/                 # 离线和实时示例入口
+│   └── stream_kws_main.cc       # 流式唤醒主流程
 ├── frontend/            # MFCC/Fbank、FFT、WAV读取
 ├── kws/                 # TFLite Micro KWS封装
+├── stream/              # 流式推理辅助模块
+│   ├── audio_recorder.h/.cc     # 实时录音
+│   ├── sliding_feature_window.h/.cc # 256帧滑动窗口
+│   ├── wakeup_postprocessor.h/.cc   # 双唤醒词后处理
+│   ├── wakeup_notifier.h/.cc    # 播放提示音、控制LED
+│   └── inference_stats.h/.cc    # 推理性能统计与日志
 ├── model/               # 默认模型、嵌入数组及备选模型
 ├── examples/test_audio/ # 16 kHz单声道WAV测试样本
 ├── tools/               # 模型检查和数组转换工具

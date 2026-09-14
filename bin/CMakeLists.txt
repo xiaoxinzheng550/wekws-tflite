@@ -22,11 +22,9 @@ if(WEKWS_BUILD_STREAM)
       kws
       frontend
       model_data
+      stream_support
       tflite_micro
       pthread
       m
   )
-  if(APPLE)
-    target_link_libraries(stream_kws_main PUBLIC portaudio_static)
-  endif()
 endif()

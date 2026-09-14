@@ -70,8 +70,15 @@ The latency shown below is the inference time for one fixed window. It excludes 
 ```text
 wekws-tflite/
 ├── bin/                 # Offline and live example entry points
+│   └── stream_kws_main.cc       # Streaming wake-word main flow
 ├── frontend/            # MFCC/Fbank, FFT, and WAV reading
 ├── kws/                 # TFLite Micro KWS wrapper
+├── stream/              # Streaming inference support modules
+│   ├── audio_recorder.h/.cc     # Live audio capture
+│   ├── sliding_feature_window.h/.cc # 256-frame sliding window
+│   ├── wakeup_postprocessor.h/.cc   # Dual-keyword post-processing
+│   ├── wakeup_notifier.h/.cc    # Prompt playback and LED control
+│   └── inference_stats.h/.cc    # Inference metrics and logging
 ├── model/               # Default model, embedded array, and alternative models
 ├── examples/test_audio/ # 16 kHz mono WAV test samples
 ├── tools/               # Model inspection and array-conversion tools
