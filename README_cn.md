@@ -193,23 +193,6 @@ PCM回调
 
 ## 第三方依赖版本与修改说明
 
-仓库中的依赖取自原工程
-`runtime/tflite_micro_runtime/fc_base`，发布前进行了逐文件核对：
-
-- `third_party/portaudio`：PortAudio 官方 `v19.7.0`，提交
-  `147dd722548358763a8b649b3e4b41dfffbcfbb6`。源码未修改，仅排除了
-  `.git`、构建产物、测试、示例、文档和 macOS `._*` 元数据；保留实际构建
-  所需的 `CMakeLists.txt`、`cmake_support`、`include`、`src` 和原许可证。
-- `third_party/tflm/include`：与原工程的 131 个 TFLite Micro 头文件逐文件一致。
-- `third_party/tflm/lib/macos-arm64/libtensorflow-microlite.a`：对应原文件
-  `libtensorflow-microlite.a`，SHA-256 为
-  `7e78cc5d80207e88eece4fa5c4b5fb553cf65322b463c4dc4a6cf181f38e69e1`。
-- Linux x86_64、ARMv7 glibc 和 ARMv7 musl 静态库也只是按目标平台重命名
-  归档，二进制内容未修改；完整校验值见 `third_party/tflm/README_cn.md`。
-- 原目录中的 `libtensorflow-microlite.a.arm32` 没有被原 CMake 使用，且无法
-  从文件名可靠确定 ABI，因此没有作为默认库发布。需要该特定产物时请通过
-  `-DTFLM_LIBRARY=/absolute/path/to/library.a` 显式指定，并确保工具链和 ABI 匹配。
-
 PortAudio 源码本身没有打补丁。`cmake/portaudio.cmake` 通过`add_subdirectory()` 直接加入本地源码，关闭不需要的共享库、测试和示例，并兼容 CMake 4 的策略要求；工程中不再包含 PortAudio 的网络下载逻辑。
 
 仓库附带的 TFLite Micro 静态库已经包含当前量化模型所需的两项类型兼容修改：补充 `FLOAT32 -> UINT8` 量化，以及 `CAST` 的 `UINT8` 输入和输出支持。如果改用官方源码自行构建 TFLM，需要重新应用这些修改；具体说明见[`third_party/tflm/README_cn.md`](third_party/tflm/README_cn.md)。
