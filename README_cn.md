@@ -38,12 +38,11 @@ wekws-tflite/
 └── LICENSE
 ```
 
-## ONNX 转 TFLite 依赖环境与脚本（待添加）
+## ONNX 转 TFLite 依赖环境与脚本（待添加，暂时可以不管）
 
-当前仓库尚未提供 ONNX 转 TFLite 脚本，后续添加。现有 Python 环境只用于
-`tools/verify_tflite.py` 检查 TFLite 模型；编译和运行 C++ 唤醒程序不依赖
-Conda、NumPy 或 TensorFlow。已验证的 Python 组合为 Python 3.10、
-NumPy 1.24.0 和 TensorFlow 2.16.2。
+1、当前仓库尚未提供 ONNX 转 TFLite 脚本，后续添加。
+2、现有 Python 环境和requirements.txt只用于`tools/verify_tflite.py` 检查 TFLite 模型；
+3、编译和运行 C++ 唤醒程序不依赖Conda、NumPy 或 TensorFlow。已验证的 Python 组合为 Python 3.10、NumPy 1.24.0 和 TensorFlow 2.16.2。
 
 创建独立环境并安装固定版本的可选依赖：
 
@@ -61,10 +60,7 @@ python -m pip check
 python tools/verify_tflite.py
 ```
 
-如果 Conda 环境位于 macOS 的 FAT/exFAT 外接盘，文件系统可能生成大量
-`._*` AppleDouble 元数据，使 `pip` 报 `Ignoring invalid distribution`，或使
-`conda list` 报 `UnicodeDecodeError`。这不是项目缺少 Python 依赖。优先把
-环境创建在 APFS/本机磁盘；已有环境可退出后使用 `dot_clean -m` 清理：
+如果 Conda 环境位于 macOS 的 FAT/exFAT 外接盘，文件系统可能生成大量`._*` AppleDouble 元数据，使 `pip` 报 `Ignoring invalid distribution`，或使`conda list` 报 `UnicodeDecodeError`。这不是项目缺少 Python 依赖。优先把环境创建在 APFS/本机磁盘；已有环境可退出后使用 `dot_clean -m` 清理：
 
 ```bash
 conda deactivate
@@ -73,8 +69,7 @@ conda activate wekws-tflite
 python -m pip check
 ```
 
-临时查看这类环境的包列表可使用 `conda --no-plugins list`，但仍建议清理
-AppleDouble 文件或重新在 APFS 文件系统创建环境。
+临时查看这类环境的包列表可使用 `conda --no-plugins list`，但仍建议清理AppleDouble 文件或重新在 APFS 文件系统创建环境。
 
 ## 把模型转换为可烧录的 C++ 数组
 

@@ -25,10 +25,6 @@
 
 namespace wekws {
 
-// 模型输入固定帧数 (TFLite Micro 不支持动态形状)
-// 如果需要支持不同帧数，需要重新导出模型或多次推理
-constexpr int kMaxFrames = 100;  // 最大帧数
-
 class KeywordSpotting {
  public:
   KeywordSpotting();

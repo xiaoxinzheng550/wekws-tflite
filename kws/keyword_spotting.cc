@@ -38,24 +38,33 @@ bool KeywordSpotting::Init(const unsigned char* model_data, size_t model_size) {
 
   // 2. 创建算子解析器
   op_resolver_ = new MicroOpResolver();
-  op_resolver_->AddConv2D();
-  op_resolver_->AddDepthwiseConv2D();
-  op_resolver_->AddFullyConnected();
+  // DS-TCN、MDTC 和 MDTC-small 的公共算子
   op_resolver_->AddAdd();
-  op_resolver_->AddSub();
-  op_resolver_->AddMul();
-  op_resolver_->AddRelu();
-  op_resolver_->AddReshape();
-  op_resolver_->AddTranspose();
-  op_resolver_->AddQuantize();
-  op_resolver_->AddDequantize();
-  op_resolver_->AddCast();
-  op_resolver_->AddSlice();
   op_resolver_->AddConcatenation();
+  op_resolver_->AddConv2D();
+  op_resolver_->AddFullyConnected();
   op_resolver_->AddLogistic();
-  op_resolver_->AddRound();
+  op_resolver_->AddMul();
+  op_resolver_->AddReshape();
+  op_resolver_->AddSub();
+  op_resolver_->AddTranspose();
+
+  // 量化 DS-TCN 的额外算子
+  op_resolver_->AddQuantize();
+  op_resolver_->AddCast();
+  op_resolver_->AddDequantize();
+  op_resolver_->AddDepthwiseConv2D();
+  op_resolver_->AddRelu();
+  op_resolver_->AddSlice();
+
+  // MDTC 和 MDTC-small 的额外算子
   op_resolver_->AddStridedSlice();
+
+  // avg_30_256.tflite 的额外算子（INT64 positions 仍不受当前内核支持）
   op_resolver_->AddGather();
+
+  // 为后续模型暂时保留；
+  op_resolver_->AddRound();
 
   // 3. 创建解释器
   interpreter_ = new tflite::MicroInterpreter(

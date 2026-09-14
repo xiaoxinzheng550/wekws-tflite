@@ -50,7 +50,7 @@ python tools/convert_tflite_to_cc.py \
 
 ## MDTC 模型
 
-`tflite/avg_mdtc_256.tflite` 和 `tflite/avg_mdtc_small_256.tflite` 使用 80 维 MFCC。后者与根目录的 `wekws_mdtc_small.tflite` 完全相同。切换到 MDTC-small 的示例：
+`tflite/avg_mdtc_256.tflite` 和 `tflite/avg_mdtc_small_256.tflite` 使用 80 维 MFCC。切换到 MDTC-small 的示例：
 
 ```bash
 python tools/convert_tflite_to_cc.py \
@@ -60,6 +60,34 @@ python tools/convert_tflite_to_cc.py \
 ```
 
 切换模型后必须核对输入输出形状、缓存布局、张量类型、所需算子和 Tensor Arena 大小。将文件放进 `model/` 不会自动切换嵌入模型。
+
+## 模型算子依赖
+
+DS-TCN、MDTC 和 MDTC-small 共同依赖以下算子，因此这些公共算子统一放在 `kws/keyword_spotting.cc` 的注册列表前部：
+
+```text
+ADD
+CONCATENATION
+CONV_2D
+FULLY_CONNECTED
+LOGISTIC
+MUL
+RESHAPE
+SUB
+TRANSPOSE
+```
+
+不同模型额外依赖的算子如下：
+
+| 模型 | 额外算子 | 说明 |
+| --- | --- | --- |
+| `ds_tcn_fixed_quantized_backup.tflite` | `QUANTIZE`、`CAST`、`DEQUANTIZE`、`RELU`、`SLICE`、`DEPTHWISE_CONV_2D` | 量化 DS-TCN 当前嵌入模型 |
+| `avg_mdtc_256.tflite` | `STRIDED_SLICE` | 标准 MDTC |
+| `avg_mdtc_small_256.tflite` | `STRIDED_SLICE` | MDTC-small；与标准 MDTC 使用相同种类的算子，但节点数量不同 |
+
+`avg_30_256.tflite` 不属于上面的共同集合。它实际依赖 `SUB`、`FULLY_CONNECTED`、`TRANSPOSE`、`GATHER`、`CONCATENATION`、`RESHAPE`、`DEPTHWISE_CONV_2D`、`CONV_2D`、`ADD` 和 `LOGISTIC`。其中 `GATHER` 已注册，但该模型使用 INT64 positions，仍受前文所述的 TFLite Micro 内核限制。
+
+当前注册列表取这些备选模型所需算子的并集，暂不裁剪。`ROUND` 暂时保留，但上述仓库内模型均未使用该算子。
 
 ## 目录
 
