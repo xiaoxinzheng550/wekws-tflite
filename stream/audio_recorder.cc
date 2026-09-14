@@ -25,12 +25,24 @@ namespace wekws {
 
 class AudioRecorder::Impl {
  public:
+  /**
+   * 函数名：Impl
+   * 输入：device 设备名，sample_rate 采样率，chunk_samples 单次采集点数
+   * 输出：构造完成的平台录音实现
+   * 函数功能：保存实时录音所需的平台参数和运行状态
+   */
   Impl(std::string device, int sample_rate, int chunk_samples)
       : device_(std::move(device)),
         device_name_(device_),
         sample_rate_(sample_rate),
         chunk_samples_(chunk_samples) {}
 
+  /**
+   * 函数名：Open
+   * 输入：无
+   * 输出：录音设备成功启动返回 true，否则返回 false
+   * 函数功能：在 macOS 打开 PortAudio，在 Linux 启动 arecord
+   */
   bool Open() {
 #if defined(__APPLE__)
     PaError error = Pa_Initialize();
@@ -73,6 +85,12 @@ class AudioRecorder::Impl {
     return true;
   }
 
+  /**
+   * 函数名：Start
+   * 输入：exiting 退出标志，audio_callback 音频回调，finished_callback 结束回调
+   * 输出：无
+   * 函数功能：创建录音线程并按块读取 PCM 音频
+   */
   void Start(volatile sig_atomic_t* exiting, AudioCallback audio_callback,
              FinishedCallback finished_callback) {
     exiting_ = exiting;
@@ -129,10 +147,22 @@ class AudioRecorder::Impl {
         });
   }
 
+  /**
+   * 函数名：Join
+   * 输入：无
+   * 输出：无
+   * 函数功能：等待录音线程退出
+   */
   void Join() {
     if (capture_thread_.joinable()) capture_thread_.join();
   }
 
+  /**
+   * 函数名：Close
+   * 输入：无
+   * 输出：平台录音资源关闭状态码
+   * 函数功能：停止音频流并释放 PortAudio 或 arecord 资源
+   */
   int Close() {
     if (!opened_ && !portaudio_initialized_) return 0;
 #if defined(__APPLE__)

@@ -17,11 +17,44 @@ namespace wekws {
 
 class WakeupNotifier {
  public:
+  /**
+   * 函数名：WakeupNotifier
+   * 输入：audio_path 唤醒后播放的音频文件路径
+   * 输出：构造完成的通知器对象
+   * 函数功能：保存提示音配置并创建平台通知实现
+   */
   explicit WakeupNotifier(std::string audio_path);
+
+  /**
+   * 函数名：~WakeupNotifier
+   * 输入：无
+   * 输出：无
+   * 函数功能：等待提示音播放结束并释放线程资源
+   */
   ~WakeupNotifier();
 
+  /**
+   * 函数名：Initialize
+   * 输入：无
+   * 输出：初始化成功返回 true，失败返回 false
+   * 函数功能：检查提示音文件并尝试初始化 Linux LED 控制
+   */
   bool Initialize();
+
+  /**
+   * 函数名：Notify
+   * 输入：无
+   * 输出：无
+   * 函数功能：异步播放提示音，并在支持时切换 LED 状态
+   */
   void Notify();
+
+  /**
+   * 函数名：Wait
+   * 输入：无
+   * 输出：无
+   * 函数功能：等待正在播放的提示音结束
+   */
   void Wait();
 
  private:

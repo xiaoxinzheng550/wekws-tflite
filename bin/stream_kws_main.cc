@@ -56,10 +56,22 @@ struct StreamOptions {
   std::string wakeup_audio = kDefaultWakeupAudio;
 };
 
+/**
+ * 函数名：HandleSignal
+ * 输入：signal_number 操作系统信号编号
+ * 输出：无
+ * 函数功能：收到 SIGINT 或 SIGTERM 时设置全局退出标志
+ */
 void HandleSignal(int signal_number) {
   if (signal_number == SIGINT || signal_number == SIGTERM) g_exiting = 1;
 }
 
+/**
+ * 函数名：PrintUsage
+ * 输入：program 当前可执行程序名称
+ * 输出：无
+ * 函数功能：输出流式唤醒程序的命令行参数和默认值
+ */
 void PrintUsage(const char* program) {
   std::cerr << "Usage: " << program
             << " [alsa_device] [mfcc|fbank] [feature_dim] [threshold]"
@@ -70,6 +82,12 @@ void PrintUsage(const char* program) {
             << kDefaultWakeupAudio << "\n";
 }
 
+/**
+ * 函数名：ParseOptions
+ * 输入：argc 参数数量，argv 参数数组，options 待写入的配置对象
+ * 输出：全部参数合法返回 true，否则返回 false
+ * 函数功能：解析并校验录音设备、特征、阈值、步长和提示音参数
+ */
 bool ParseOptions(int argc, char* argv[], StreamOptions* options) {
   if (options == nullptr || argc > 7) return false;
   try {
@@ -92,6 +110,12 @@ bool ParseOptions(int argc, char* argv[], StreamOptions* options) {
          !options->wakeup_audio.empty();
 }
 
+/**
+ * 函数名：CreateFeatureConfig
+ * 输入：options 已解析的流式运行配置
+ * 输出：特征提取流水线配置
+ * 函数功能：根据采样率、特征类型和维度创建前端配置
+ */
 wenet::FeaturePipelineConfig CreateFeatureConfig(
     const StreamOptions& options) {
   wenet::FeaturePipelineConfig config(options.feature_dim, kSampleRate);
@@ -100,6 +124,12 @@ wenet::FeaturePipelineConfig CreateFeatureConfig(
   return config;
 }
 
+/**
+ * 函数名：PrintConfiguration
+ * 输入：options 运行配置，feature_config 特征配置，spotter 模型对象，recorder 录音器
+ * 输出：无
+ * 函数功能：输出录音、特征、滑窗、阈值和提示音等启动信息
+ */
 void PrintConfiguration(const StreamOptions& options,
                         const wenet::FeaturePipelineConfig& feature_config,
                         const wekws::KeywordSpotting& spotter,
@@ -133,7 +163,14 @@ void PrintConfiguration(const StreamOptions& options,
 
 }  // namespace
 
+/**
+ * 函数名：main
+ * 输入：argc 命令行参数数量，argv 命令行参数数组
+ * 输出：0 表示正常退出，1 表示运行失败，2 表示参数或配置错误
+ * 函数功能：组织实时录音、特征提取、滑窗推理、唤醒后处理和通知流程
+ */
 int main(int argc, char* argv[]) {
+  // 解析并校验命令行配置。
   StreamOptions options;
   if (!ParseOptions(argc, argv, &options)) {
     PrintUsage(argv[0]);
@@ -145,6 +182,7 @@ int main(int argc, char* argv[]) {
     return 2;
   }
 
+  // 初始化提示器、模型、特征流水线和录音设备。
   wekws::WakeupNotifier notifier(options.wakeup_audio);
   if (!notifier.Initialize()) return 2;
 
@@ -174,6 +212,7 @@ int main(int argc, char* argv[]) {
                                 kSamplesPerChunk);
   if (!recorder.Open()) return 1;
 
+  // 注册退出信号并创建滑窗、后处理和性能统计对象。
   signal(SIGINT, HandleSignal);
   signal(SIGTERM, HandleSignal);
   PrintConfiguration(options, feature_config, spotter, recorder);
@@ -186,6 +225,7 @@ int main(int argc, char* argv[]) {
   wekws::InferenceStats stats(kSampleRate, feature_config.frame_length,
                               feature_config.frame_shift);
 
+  // 启动录音线程，将采集到的 PCM 连续送入特征流水线。
   recorder.Start(
       &g_exiting,
       [&](const std::vector<int16_t>& pcm) {
@@ -193,6 +233,7 @@ int main(int argc, char* argv[]) {
       },
       [&]() { feature_pipeline.set_input_finished(); });
 
+  // 按固定步长读取新特征，执行滑窗推理和双唤醒词判断。
   while (!g_exiting) {
     std::vector<std::vector<float>> new_features;
     if (!feature_pipeline.Read(options.stride_frames, &new_features)) break;
@@ -228,6 +269,7 @@ int main(int argc, char* argv[]) {
     }
     if (!result.triggered()) continue;
 
+    // 唤醒成功后输出事件信息并执行提示音和 LED 通知。
     const size_t keyword = static_cast<size_t>(result.triggered_keyword);
     const auto& wake_word = wekws::WakeWords()[keyword];
     const double keyword_time = stats.FrameAudioSeconds(
@@ -241,6 +283,7 @@ int main(int argc, char* argv[]) {
     notifier.Notify();
   }
 
+  // 等待异步任务结束并释放录音、播放等平台资源。
   g_exiting = 1;
   recorder.Join();
   notifier.Wait();

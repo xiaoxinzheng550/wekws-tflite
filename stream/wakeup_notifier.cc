@@ -29,6 +29,12 @@ constexpr const char* kLedTriggerPath = "/sys/class/leds/sys-led/trigger";
 constexpr const char* kLedBrightnessPath =
     "/sys/devices/platform/leds/leds/sys-led/brightness";
 
+/**
+ * 函数名：WriteLedFile
+ * 输入：path LED sysfs 文件路径，value 待写入的控制值
+ * 输出：写入成功返回 true，失败返回 false
+ * 函数功能：向 Linux LED 控制文件写入触发方式或亮度
+ */
 bool WriteLedFile(const char* path, const std::string& value) {
   std::ofstream file(path);
   if (!file.is_open()) return false;
@@ -37,6 +43,12 @@ bool WriteLedFile(const char* path, const std::string& value) {
   return file.good();
 }
 
+/**
+ * 函数名：ToggleLed
+ * 输入：无
+ * 输出：无
+ * 函数功能：在 Linux 平台读取当前亮度并切换板载 LED 状态
+ */
 void ToggleLed() {
 #if !defined(__APPLE__)
   std::ifstream brightness_file(kLedBrightnessPath);
@@ -54,6 +66,12 @@ void ToggleLed() {
 #endif
 }
 
+/**
+ * 函数名：PlayAudio
+ * 输入：audio_path 待播放的提示音路径
+ * 输出：播放器正常退出返回 true，否则返回 false
+ * 函数功能：调用 macOS afplay 或 Linux aplay 同步播放提示音
+ */
 bool PlayAudio(const std::string& audio_path) {
 #if defined(__APPLE__)
   const char* player = "afplay";
@@ -92,8 +110,20 @@ bool PlayAudio(const std::string& audio_path) {
 
 class WakeupNotifier::Impl {
  public:
+  /**
+   * 函数名：Impl
+   * 输入：audio_path 唤醒提示音文件路径
+   * 输出：构造完成的平台通知实现
+   * 函数功能：保存提示音路径并初始化通知状态
+   */
   explicit Impl(std::string audio_path) : audio_path_(std::move(audio_path)) {}
 
+  /**
+   * 函数名：Initialize
+   * 输入：无
+   * 输出：提示音可用返回 true，否则返回 false
+   * 函数功能：检查提示音并在 Linux 平台关闭 LED 默认触发器
+   */
   bool Initialize() {
     std::ifstream audio_file(audio_path_, std::ios::binary);
     if (!audio_file.good()) {
@@ -110,6 +140,12 @@ class WakeupNotifier::Impl {
     return true;
   }
 
+  /**
+   * 函数名：Notify
+   * 输入：无
+   * 输出：无
+   * 函数功能：启动异步提示音播放，并在 Linux 平台切换 LED
+   */
   void Notify() {
     if (!playback_active_.exchange(true)) {
       if (playback_thread_.joinable()) playback_thread_.join();
@@ -125,6 +161,12 @@ class WakeupNotifier::Impl {
 #endif
   }
 
+  /**
+   * 函数名：Wait
+   * 输入：无
+   * 输出：无
+   * 函数功能：等待提示音播放线程退出
+   */
   void Wait() {
     if (playback_thread_.joinable()) playback_thread_.join();
   }
