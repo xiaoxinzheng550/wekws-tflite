@@ -1,4 +1,6 @@
 // Copyright (c) 2017 Personal (Binbin Zhang)
+// Modifications Copyright (c) 2026 GengXin Zheng (xiaoxinzheng35@foxmail.com)
+// Modified by GengXin Zheng in 2026 for wekws-tflite.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

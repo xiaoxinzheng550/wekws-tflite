@@ -90,10 +90,16 @@ find third_party/tflm/lib -name 'libtensorflow-microlite.a' \
 将命令输出的 64 位字符串与表格中对应平台的一项比较即可。相同表示文件内容
 一致，不同表示文件不是同一份，应先确认是否损坏、被修改或选择了错误版本。
 
-## 当前量化模型需要对 tflite-micro依赖静态库做兼容性修改（待补充）
-GitHub 官方 `tflite-micro` 当前默认实现仍缺少上述 `FLOAT32 -> UINT8` 量化分支和 `CAST` 的 `UINT8` 分支。因此，如果以后不使用本仓库的预编译静态库，而是从官方源码重新构建，也要应用这两项兼容性修改，或者重新导出模型以消除这些节点。
+## 当前量化模型所需的 TFLM 兼容性修改
 
-当前嵌入的 `ds_tcn_fixed_quantized_backup.tflite` 在模型内部重复使用以下路径（可以用netron查看模型结构）：
+本仓库附带的预编译 TFLM 静态库已经包含以下两项兼容性修改，直接使用仓库
+静态库时不需要再次修改。GitHub 官方 `tflite-micro` 当前默认实现仍缺少
+`FLOAT32 -> UINT8` 量化分支和 `CAST` 的 `UINT8` 分支。因此，如果以后不使用
+本仓库的预编译静态库，而是从官方源码重新构建，需要重新应用这两项修改，
+或者重新导出模型以消除相关节点。
+
+当前嵌入的 `ds_tcn_fixed_quantized_backup.tflite` 在模型内部重复使用以下路径
+（可以用 Netron 查看模型结构）：
 
 ```text
 FLOAT32 -> QUANTIZE -> UINT8 -> CAST(UINT8到UINT8) -> DEQUANTIZE -> FLOAT32
@@ -109,6 +115,5 @@ FLOAT32 -> QUANTIZE -> UINT8 -> CAST(UINT8到UINT8) -> DEQUANTIZE -> FLOAT32
 `Register_DEQUANTIZE()` 已经支持这两条路径，因此不需要修改
 `dequantize.cc`。专用的 `Register_DEQUANTIZE_INT8()` 属于算子裁剪或模型编译器
 适配。
-
 
 
