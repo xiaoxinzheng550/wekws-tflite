@@ -21,6 +21,47 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 - `.tflite` 转 C++ 静态数组工具。
 - 随仓库提供 macOS arm64、Linux x86_64 和 ARMv7 预编译 TFLM 库。
 
+## 项目进度
+
+| 状态 | 内容 |
+| --- | --- |
+| 已完成 | 量化 DS-TCN 模型接入，支持 TFLite Micro 推理及模型静态数组加载 |
+| 已完成 | 40 维 Log-Mel Fbank 和 80 维 MFCC 特征提取 |
+| 已完成 | 256 帧滑动窗口、唤醒阈值、连续命中和冷却时间控制 |
+| 已完成 | WAV 离线检测及 macOS PortAudio 实时麦克风检测 |
+| 已完成 | 按平台选择 macOS arm64、Linux x86_64 和 ARMv7 TFLM 静态库 |
+| 进行中 | Linux x86_64 实机编译、录音和端到端唤醒验证 |
+| 进行中 | 将历史 NuttX 板端的音频采集、线程同步、固定内存和业务回调适配整理到本仓库 |
+| 待完成 | 补充 ONNX 转 TFLite 脚本及模型转换流程 |
+
+## 待优化问题
+
+- mdtc架构模型，唤醒精度不足，但是推理延迟可以支撑IMX6ULL芯片的实时唤醒（可以考虑改单一唤醒词，重新训练模型进行测试）
+- ds_tcn唤醒精度98%，但是推理延迟不适合低资源设备。（暂未使用RK3566/3588等设备验证过响应延迟）
+
+## 端侧移植与模型推理延迟
+
+移植进度和模型性能是两个不同维度：平台表记录音频采集、构建和端侧接口是否完成；模型表记录每个模型在不同平台上的纯推理延迟。以下数据用于记录当前验证进度，不代表不同设备上的统一性能指标。
+
+### 平台移植进度
+
+| 平台 | 当前状态 | 采集/运行方式 | 说明 |
+| --- | --- | --- | --- |
+| macOS arm64 | 已验证离线推理 | WAV；实时采集使用 PortAudio | 当前主要开发和验证平台 |
+| Linux x86_64 | 已提供构建依赖，待实机验证 | WAV；实时采集使用 `arecord` | 已附带 glibc 平台 TFLM 静态库，仍需验证编译、采集和端到端唤醒 |
+| Linux i.MX6ULL/ARMv7 | 已完成历史板端流式验证 | `arecord` 或板端 PCM 接口 | 已测试 DS-TCN、MDTC 和 MDTC-small；构建时需要根据目标系统的 C 运行库选择 ARMv7 glibc 或 musl TFLM 静态库 |
+| NuttX/ARMv7 | 已完成历史工程模型推理验证，待整理到本仓库 | 板端 PCM/DMA 回调 | 已测试 DS-TCN 和 MDTC-small；Linux ARMv7 静态库不能直接用于 NuttX，需要使用 NuttX 工具链重新构建 TFLM |
+
+### 不同模型的推理延迟
+
+表中的延迟是单个固定窗口的模型推理时间，不包含 WAV 读取、实时录音和特征提取。`待测试` 表示仓库中已有模型但尚未在该平台形成可复现数据，`暂不可测` 表示模型当前存在已知的内核兼容问题。
+
+| 模型 | 输入特征 | macOS arm64 | Linux x86_64 | Linux i.MX6ULL/ARMv7 | NuttX/ARMv7 | 当前验证情况 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `ds_tcn_fixed_quantized_backup.tflite` | 40 维 Fbank；256 帧 | 约 100 ms | 待测试 | 约 1 s | 约 6 s | macOS 和 i.MX6ULL 均已唤醒成功；该模型不适合当前低资源板端配置 |
+| `avg_mdtc_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约520 ms | 待测试 | i.MX6ULL 使用 600 ms 步长时算力占用约 86.6%，实时余量较小 |
+| `avg_mdtc_small_256.tflite` | 80 维 MFCC；256 帧 | 待测试 | 待测试 | 约150 ms | 约730 ms（208 MHz） | i.MX6ULL 使用 400 ms 步长时算力占用约 35%；NuttX 使用 600 ms 步长时无法持续跟上连续语音 |
+
 ## 目录
 
 ```text
@@ -29,7 +70,7 @@ wekws-tflite/
 ├── frontend/            # MFCC/Fbank、FFT、WAV读取
 ├── kws/                 # TFLite Micro KWS封装
 ├── model/               # 默认模型、嵌入数组及备选模型
-├── examples/audio/      # 16 kHz单声道WAV测试样本
+├── examples/test_audio/ # 16 kHz单声道WAV测试样本
 ├── tools/               # 模型检查和数组转换工具
 ├── third_party/tflm/    # TFLM头文件及分平台静态库
 ├── third_party/portaudio/ # 官方PortAudio v19.7.0源码
@@ -144,7 +185,7 @@ BUILD_DIR=/tmp/wekws-build ./build.sh clean
 输入必须是 16 kHz、单声道 PCM WAV：
 
 ```bash
-./build/bin/kws_main fbank 40 256 examples/audio/0000e12e2402775c2d506d77b6dbb411.wav
+./build/bin/kws_main fbank 40 256 examples/test_audio/0000e12e2402775c2d506d77b6dbb411.wav
 ```
 
 参数依次为：特征类型、特征维度、固定窗口帧数、WAV 文件。仓库附带多份唤醒、口语和噪声测试音频，全部为 16 kHz、16-bit、单声道PCM WAV。

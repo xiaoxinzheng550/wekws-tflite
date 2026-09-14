@@ -18,7 +18,7 @@
 ```bash
 ./build.sh kws
 ./build/bin/kws_main fbank 40 256 \
-  examples/audio/0000e12e2402775c2d506d77b6dbb411.wav
+  examples/test_audio/0000e12e2402775c2d506d77b6dbb411.wav
 ```
 
 指定音频实测类别 1 最高分为 `1.0`，超过默认 `0.80` 阈值，能够识别成功。
@@ -45,7 +45,7 @@ Node GATHER failed to prepare
 python tools/convert_tflite_to_cc.py \
   model/tflite/avg_30_256_fixed.tflite model/model_data.cc
 ./build.sh kws
-./build/bin/kws_main fbank 40 256 examples/audio/your_test.wav
+./build/bin/kws_main fbank 40 256 examples/test_audio/your_test.wav
 ```
 
 ## MDTC 模型
@@ -56,7 +56,7 @@ python tools/convert_tflite_to_cc.py \
 python tools/convert_tflite_to_cc.py \
   model/tflite/avg_mdtc_small_256.tflite model/model_data.cc
 ./build.sh kws
-./build/bin/kws_main mfcc 80 256 examples/audio/your_test.wav
+./build/bin/kws_main mfcc 80 256 examples/test_audio/your_test.wav
 ```
 
 切换模型后必须核对输入输出形状、缓存布局、张量类型、所需算子和 Tensor Arena 大小。将文件放进 `model/` 不会自动切换嵌入模型。
