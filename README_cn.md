@@ -11,11 +11,14 @@ MobvoiHotwords 是由出门问问提供的中文唤醒词数据集，包含“Hi
 
 当前嵌入的是量化 DS-TCN 模型`model/tflite/ds_tcn_fixed_quantized_backup.tflite`，输入为 16 kHz单声道 PCM 提取的 40 维 Fbank，固定输入窗口为 256 帧。该模型内部包含量化/反量化节点，但输入、缓存和输出接口仍为 float32。仓库专注 KWS 推理，不内置SpeexDSP、AEC、降噪或 AGC；产品使用时可在送入特征提取器前接入自己的音频前处理模块。
 
+当前模型的两个输出类别分别对应“嗨小问”和“你好问问”，离线与实时程序均支持识别这两个唤醒词。
+
 ## 功能
 
 - TFLite Micro C++ 推理，支持 float32、int8 和 uint8 张量。
 - 80 维 MFCC、40 维 Log-Mel Fbank 前端。
 - 滑动窗口推理和重复唤醒抑制。
+- “嗨小问”和“你好问问”双唤醒词检测。
 - WAV 文件离线测试。
 - macOS PortAudio、Linux `arecord` 实时采集示例。
 - `.tflite` 转 C++ 静态数组工具脚本。
@@ -205,6 +208,14 @@ Linux 使用系统的 `arecord`，需要先安装 ALSA utilities：
 ```
 
 最后一个参数是滑动步长，单位为特征帧；50 帧约为 500 ms。
+
+实时日志分别输出 `hi_xiaowen_score` 和 `nihao_wenwen_score`。唤醒成功时，`keyword=hi_xiaowen class=0` 表示“嗨小问”，`keyword=nihao_wenwen class=1` 表示“你好问问”。
+
+唤醒成功后，程序默认异步播放 `examples/test_audio/wozai.wav`：macOS 使用系统 `afplay`，Linux 使用 `aplay -q`。播放在线程中执行，不阻塞录音和模型推理。Linux 需要安装包含 `aplay` 的 ALSA utilities。也可以通过第六个可选参数指定其他提示音：
+
+```bash
+./build/bin/stream_kws_main default fbank 40 0.80 50 /absolute/path/to/wakeup.wav
+```
 
 ## 嵌入式接入
 

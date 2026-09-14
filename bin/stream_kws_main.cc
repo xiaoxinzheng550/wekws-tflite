@@ -15,7 +15,10 @@
 // limitations under the License.
 
 #include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -36,12 +39,21 @@
 #include "portaudio.h"  // NOLINT
 #endif
 
+extern char** environ;
+
 namespace {
 
 constexpr int kSampleRate = 16000;
 constexpr int kCaptureChunkMs = 20;
 constexpr int kSamplesPerChunk = kSampleRate * kCaptureChunkMs / 1000;
-constexpr int kKeywordClass = 1;
+struct KeywordInfo {
+  int class_index;
+  const char* name;
+};
+constexpr std::array<KeywordInfo, 2> kKeywords = {{
+    {0, "hi_xiaowen"},
+    {1, "nihao_wenwen"},
+}};
 constexpr int kDefaultStrideFrames = 50;
 constexpr float kMediumWakeupThreshold = 0.60f;
 constexpr float kWakeupReleaseThreshold = 0.20f;
@@ -49,6 +61,8 @@ constexpr int kMediumHitsRequired = 2;
 // Release the wakeup latch only when the newest output ends with this many
 // genuinely consecutive low-score frames (10 frames = 100 ms).
 constexpr int kReleaseLowFramesRequired = 10;
+constexpr const char* kDefaultWakeupAudio =
+    "examples/test_audio/wozai.wav";
 constexpr const char* kLedTriggerPath =
     "/sys/class/leds/sys-led/trigger";
 constexpr const char* kLedBrightnessPath =
@@ -108,19 +122,62 @@ bool ToggleLed(bool* led_on) {
   return true;
 }
 
+bool PlayWakeupAudio(const std::string& audio_path) {
+#if defined(__APPLE__)
+  const char* player = "afplay";
+  char* const player_args[] = {
+      const_cast<char*>(player),
+      const_cast<char*>(audio_path.c_str()),
+      nullptr,
+  };
+#else
+  const char* player = "aplay";
+  char* const player_args[] = {
+      const_cast<char*>(player),
+      const_cast<char*>("-q"),
+      const_cast<char*>(audio_path.c_str()),
+      nullptr,
+  };
+#endif
+
+  pid_t player_pid = -1;
+  const int spawn_status =
+      posix_spawnp(&player_pid, player, nullptr, nullptr, player_args, environ);
+  if (spawn_status != 0) {
+    LOG(ERROR) << "Failed to start " << player << " for " << audio_path
+               << ": error " << spawn_status;
+    return false;
+  }
+
+  int player_status = 0;
+  pid_t wait_result;
+  do {
+    wait_result = waitpid(player_pid, &player_status, 0);
+  } while (wait_result == -1 && errno == EINTR);
+
+  if (wait_result == -1 || !WIFEXITED(player_status) ||
+      WEXITSTATUS(player_status) != 0) {
+    LOG(ERROR) << player << " failed while playing " << audio_path;
+    return false;
+  }
+  return true;
+}
+
 void PrintUsage(const char* program) {
   std::cerr << "Usage: " << program
             << " [alsa_device] [mfcc|fbank] [feature_dim] [threshold]"
-               " [stride_frames]\n"
+               " [stride_frames] [wakeup_audio]\n"
             << "Defaults: audio_device=" << kDefaultAudioDevice
             << " feat_type=fbank "
-               "feature_dim=40 threshold=0.80 stride_frames=50\n";
+               "feature_dim=40 threshold=0.80 stride_frames=50"
+               " wakeup_audio="
+            << kDefaultWakeupAudio << "\n";
 }
 
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  if (argc > 6) {
+  if (argc > 7) {
     PrintUsage(argv[0]);
     return 2;
   }
@@ -131,12 +188,19 @@ int main(int argc, char* argv[]) {
   const float threshold = argc > 4 ? std::stof(argv[4]) : 0.80f;
   const int stride_frames =
       argc > 5 ? std::stoi(argv[5]) : kDefaultStrideFrames;
+  const std::string wakeup_audio =
+      argc > 6 ? argv[6] : kDefaultWakeupAudio;
 
   if (!IsSafeAlsaDevice(audio_device) ||
       (feat_type != "mfcc" && feat_type != "fbank") ||
       feature_dim <= 0 || threshold < 0.0f || threshold > 1.0f ||
-      stride_frames <= 0) {
+      stride_frames <= 0 || wakeup_audio.empty()) {
     PrintUsage(argv[0]);
+    return 2;
+  }
+  std::ifstream wakeup_audio_file(wakeup_audio, std::ios::binary);
+  if (!wakeup_audio_file.good()) {
+    LOG(ERROR) << "Wakeup audio file not found: " << wakeup_audio;
     return 2;
   }
   if (threshold <= kWakeupReleaseThreshold) {
@@ -251,6 +315,7 @@ int main(int argc, char* argv[]) {
             << kReleaseLowFramesRequired * feature_config.frame_shift * 1000 /
                    kSampleRate
             << " ms";
+  LOG(INFO) << "Wakeup audio: " << wakeup_audio;
   LOG(INFO) << "Press Ctrl+C to stop.";
 
   std::atomic<unsigned long long> captured_samples{0};
@@ -258,9 +323,11 @@ int main(int argc, char* argv[]) {
   std::atomic<bool> capture_failed{false};
   int inference_count = 0;
   bool wakeup_armed = true;
-  int medium_hit_streak = 0;
+  std::array<int, kKeywords.size()> medium_hit_streak{};
   int consecutive_release_low_frames = 0;
   unsigned long long processed_frames = 0;
+  std::atomic<bool> playback_active{false};
+  std::thread playback_thread;
   const auto stream_start = std::chrono::steady_clock::now();
 
   // Keep audio capture independent from inference. On the target board one
@@ -359,15 +426,27 @@ int main(int argc, char* argv[]) {
     const auto inference_end = std::chrono::steady_clock::now();
     ++inference_count;
 
-    float best_keyword_score = 0.0f;
-    int best_frame = -1;
+    std::array<float, kKeywords.size()> best_keyword_scores{};
+    std::array<int, kKeywords.size()> best_keyword_frames;
+    best_keyword_frames.fill(-1);
     const int output_end = std::min(
         output_end_expected, static_cast<int>(probabilities.size()));
     for (int frame = output_start; frame < output_end; ++frame) {
-      if (probabilities[frame].size() > kKeywordClass &&
-          probabilities[frame][kKeywordClass] > best_keyword_score) {
-        best_keyword_score = probabilities[frame][kKeywordClass];
-        best_frame = static_cast<int>(frame);
+      for (size_t keyword = 0; keyword < kKeywords.size(); ++keyword) {
+        const int class_index = kKeywords[keyword].class_index;
+        if (probabilities[frame].size() >
+                static_cast<size_t>(class_index) &&
+            probabilities[frame][class_index] > best_keyword_scores[keyword]) {
+          best_keyword_scores[keyword] = probabilities[frame][class_index];
+          best_keyword_frames[keyword] = frame;
+        }
+      }
+    }
+
+    size_t best_keyword = 0;
+    for (size_t keyword = 1; keyword < kKeywords.size(); ++keyword) {
+      if (best_keyword_scores[keyword] > best_keyword_scores[best_keyword]) {
+        best_keyword = keyword;
       }
     }
 
@@ -390,40 +469,55 @@ int main(int argc, char* argv[]) {
         std::chrono::duration<double, std::milli>(inference_end -
                                                   inference_start)
             .count();
-    const int best_new_frame =
-        best_frame >= output_start ? best_frame - output_start : -1;
     const unsigned long long first_new_absolute_frame =
         processed_frames - new_feats.size();
-    const double keyword_audio_seconds =
-        best_new_frame >= 0
+    const auto keyword_audio_seconds = [&](int frame) {
+      const int new_frame = frame >= output_start ? frame - output_start : -1;
+      return new_frame >= 0
             ? static_cast<double>(feature_config.frame_length +
-                                  (first_new_absolute_frame + best_new_frame) *
+                                  (first_new_absolute_frame + new_frame) *
                                       feature_config.frame_shift) /
                   kSampleRate
             : -1.0;
+    };
+    const int best_new_frame =
+        best_keyword_frames[best_keyword] >= output_start
+            ? best_keyword_frames[best_keyword] - output_start
+            : -1;
     std::cout << "inference=" << inference_count
               << " audio_time=" << processed_audio_seconds << "s"
               << " captured_audio=" << captured_audio_seconds << "s"
               << " capture_lag=" << capture_lag_ms << "ms"
               << " backlog=" << backlog_ms << "ms"
               << " queued_frames=" << feature_pipeline.NumQueuedFrames()
-              << " keyword_score=" << best_keyword_score
+              << " hi_xiaowen_score=" << best_keyword_scores[0]
+              << " nihao_wenwen_score=" << best_keyword_scores[1]
+              << " best_keyword=" << kKeywords[best_keyword].name
+              << " keyword_score=" << best_keyword_scores[best_keyword]
               << " new_frame=" << best_new_frame
-              << " keyword_time=" << keyword_audio_seconds << "s"
+              << " keyword_time="
+              << keyword_audio_seconds(best_keyword_frames[best_keyword]) << "s"
               << " inference_time=" << inference_ms << "ms" << std::endl;
 
     bool should_trigger = false;
     const char* trigger_reason = nullptr;
+    int triggered_keyword = -1;
     if (!wakeup_armed) {
       // Check every newly produced model output in chronological order. Do
       // not approximate 60 outputs using their maximum: that used to turn one
       // low-scoring inference directly into 60 "low frames".
       for (int frame = output_start; frame < output_end; ++frame) {
-        float frame_score = 0.0f;
-        if (probabilities[frame].size() > kKeywordClass) {
-          frame_score = probabilities[frame][kKeywordClass];
+        bool all_keywords_below_release = true;
+        for (const auto& keyword : kKeywords) {
+          if (probabilities[frame].size() >
+                  static_cast<size_t>(keyword.class_index) &&
+              probabilities[frame][keyword.class_index] >=
+                  kWakeupReleaseThreshold) {
+            all_keywords_below_release = false;
+            break;
+          }
         }
-        if (frame_score < kWakeupReleaseThreshold) {
+        if (all_keywords_below_release) {
           ++consecutive_release_low_frames;
         } else {
           consecutive_release_low_frames = 0;
@@ -434,34 +528,64 @@ int main(int argc, char* argv[]) {
         // contains an earlier low valley and another peak, it cannot trigger
         // twice inside one inference.
         wakeup_armed = true;
-        medium_hit_streak = 0;
+        medium_hit_streak.fill(0);
         consecutive_release_low_frames = 0;
         LOG(INFO) << "Wakeup detector re-armed: newest "
                   << kReleaseLowFramesRequired << " frames are below "
                   << kWakeupReleaseThreshold;
       }
-    } else if (best_keyword_score >= threshold) {
-      should_trigger = true;
-      trigger_reason = "high";
-    } else if (best_keyword_score >= kMediumWakeupThreshold) {
-      ++medium_hit_streak;
-      if (medium_hit_streak >= kMediumHitsRequired) {
-        should_trigger = true;
-        trigger_reason = "medium_x2";
-      }
     } else {
-      medium_hit_streak = 0;
+      float trigger_score = 0.0f;
+      for (size_t keyword = 0; keyword < kKeywords.size(); ++keyword) {
+        if (best_keyword_scores[keyword] >= threshold &&
+            best_keyword_scores[keyword] > trigger_score) {
+          should_trigger = true;
+          triggered_keyword = static_cast<int>(keyword);
+          trigger_score = best_keyword_scores[keyword];
+          trigger_reason = "high";
+        }
+      }
+
+      if (!should_trigger) {
+        for (size_t keyword = 0; keyword < kKeywords.size(); ++keyword) {
+          if (best_keyword_scores[keyword] >= kMediumWakeupThreshold) {
+            ++medium_hit_streak[keyword];
+          } else {
+            medium_hit_streak[keyword] = 0;
+          }
+          if (medium_hit_streak[keyword] >= kMediumHitsRequired &&
+              best_keyword_scores[keyword] > trigger_score) {
+            should_trigger = true;
+            triggered_keyword = static_cast<int>(keyword);
+            trigger_score = best_keyword_scores[keyword];
+            trigger_reason = "medium_x2";
+          }
+        }
+      }
     }
 
-    if (should_trigger) {
+    if (should_trigger && triggered_keyword >= 0) {
+      const size_t keyword = static_cast<size_t>(triggered_keyword);
       wakeup_armed = false;
-      medium_hit_streak = 0;
+      medium_hit_streak.fill(0);
       consecutive_release_low_frames = 0;
-      std::cout << "*** WAKEUP DETECTED *** score=" << best_keyword_score
-                << " keyword_time=" << keyword_audio_seconds << "s"
+      std::cout << "*** WAKEUP DETECTED *** keyword="
+                << kKeywords[keyword].name
+                << " class=" << kKeywords[keyword].class_index
+                << " score=" << best_keyword_scores[keyword]
+                << " keyword_time="
+                << keyword_audio_seconds(best_keyword_frames[keyword]) << "s"
                 << " processed_audio=" << processed_audio_seconds << "s"
-                << " trigger=" << trigger_reason
-                << std::endl;
+                << " trigger=" << trigger_reason << std::endl;
+      if (!playback_active.exchange(true)) {
+        if (playback_thread.joinable()) playback_thread.join();
+        playback_thread = std::thread([&]() {
+          PlayWakeupAudio(wakeup_audio);
+          playback_active.store(false);
+        });
+      } else {
+        LOG(WARNING) << "Wakeup audio is already playing; skipping playback";
+      }
 #if !defined(__APPLE__)
       bool led_on = false;
       if (ToggleLed(&led_on)) {
@@ -473,6 +597,7 @@ int main(int argc, char* argv[]) {
 
   g_exiting = 1;
   capture_thread.join();
+  if (playback_thread.joinable()) playback_thread.join();
 
 #if defined(__APPLE__)
   Pa_StopStream(recorder);

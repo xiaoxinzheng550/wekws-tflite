@@ -11,11 +11,14 @@ MobvoiHotwords is a Chinese wake-word dataset provided by Mobvoi. It contains ke
 
 The currently embedded model is the quantized DS-TCN model at `model/tflite/ds_tcn_fixed_quantized_backup.tflite`. Its input consists of 40-dimensional Fbank features extracted from 16 kHz mono PCM, with a fixed input window of 256 frames. The model contains internal quantize/dequantize nodes, while its input, cache, and output interfaces remain float32. This repository focuses on KWS inference and does not include SpeexDSP, AEC, noise suppression, or AGC. Product integrations can add their own audio preprocessing before passing audio to the feature extractor.
 
+The two output classes of the current model correspond to "Hi Xiaowen" and "Nihao Wenwen." Both the offline and live programs support these two wake words.
+
 ## Features
 
 - TFLite Micro C++ inference with float32, int8, and uint8 tensor support.
 - 80-dimensional MFCC and 40-dimensional Log-Mel Fbank frontends.
 - Sliding-window inference and duplicate wake-up suppression.
+- Dual wake-word detection for "Hi Xiaowen" and "Nihao Wenwen."
 - Offline WAV file testing.
 - Live capture examples using PortAudio on macOS and `arecord` on Linux.
 - Script for converting a `.tflite` model into a static C++ array.
@@ -206,6 +209,14 @@ Linux uses the system's `arecord` command and requires ALSA utilities:
 ```
 
 The final argument is the sliding stride in feature frames; 50 frames is approximately 500 ms.
+
+The live log reports `hi_xiaowen_score` and `nihao_wenwen_score` separately. On a successful wake-up, `keyword=hi_xiaowen class=0` identifies "Hi Xiaowen," while `keyword=nihao_wenwen class=1` identifies "Nihao Wenwen."
+
+After a successful wake-up, the program asynchronously plays `examples/test_audio/wozai.wav` by default. It uses the system `afplay` command on macOS and `aplay -q` on Linux. Playback runs in a separate thread and does not block audio capture or model inference. Linux requires ALSA utilities, which provides `aplay`. You can select another prompt sound with the sixth optional argument:
+
+```bash
+./build/bin/stream_kws_main default fbank 40 0.80 50 /absolute/path/to/wakeup.wav
+```
 
 ## Embedded Integration
 

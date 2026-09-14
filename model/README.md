@@ -9,6 +9,7 @@
 - Feature input: `[1, 256, 40]`
 - Streaming cache: `[1, 256, 105]`
 - Probability output: `[1, 256, 2]`
+- Class mapping: `0` is "Hi Xiaowen" (`HI_XIAOWEN`), and `1` is "Nihao Wenwen" (`NIHAO_WENWEN`)
 - Input, cache, and output interfaces: float32
 - Internal model structure: contains `QUANTIZE`, `CAST`, and `DEQUANTIZE`; it is a quantized model but does not expose fully INT8 input and output interfaces
 - Measured TFLite Micro Tensor Arena usage: 1,766,163 bytes
