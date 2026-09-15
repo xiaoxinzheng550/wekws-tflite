@@ -14,4 +14,4 @@ jobs:
       - name: Build
         run: cmake --build build --parallel 2
       - name: Smoke test
-        run: ./build/bin/kws_main mfcc 80 256 examples/audio/silence.wav
+        run: ./build/bin/kws_main fbank 40 256 examples/test_audio/silence.wav

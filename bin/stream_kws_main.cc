@@ -182,10 +182,11 @@ int main(int argc, char* argv[]) {
     return 2;
   }
 
-  // 初始化提示器、模型、特征流水线和录音设备。
+  // 初始化音频播放器、模型推理、音频特征调度器和录音设备。
+  // 音频播放器
   wekws::WakeupNotifier notifier(options.wakeup_audio);
   if (!notifier.Initialize()) return 2;
-
+  // 模型推理
   wekws::KeywordSpotting spotter;
   if (!spotter.Init(g_model_data, g_model_data_len)) {
     LOG(ERROR) << "Failed to initialize KWS model";
@@ -205,9 +206,10 @@ int main(int argc, char* argv[]) {
                << " exceeds model fixed frames " << spotter.fixed_frames();
     return 2;
   }
-
+  // 音频特征调度器：复制音频特征提取和调动缓存
   const auto feature_config = CreateFeatureConfig(options);
   wenet::FeaturePipeline feature_pipeline(feature_config);
+  // 音频录音器
   wekws::AudioRecorder recorder(options.audio_device, kSampleRate,
                                 kSamplesPerChunk);
   if (!recorder.Open()) return 1;
@@ -217,15 +219,18 @@ int main(int argc, char* argv[]) {
   signal(SIGTERM, HandleSignal);
   PrintConfiguration(options, feature_config, spotter, recorder);
 
+  // 创建滑动窗口
   wekws::SlidingFeatureWindow feature_window(spotter.fixed_frames(),
                                              options.feature_dim);
+  // 创建双唤醒词后处理器
   wekws::WakeupPostprocessor postprocessor(
       options.threshold, kMediumWakeupThreshold, kMediumHitsRequired,
       kWakeupReleaseThreshold, kReleaseLowFramesRequired);
+  // 创建性能统计对象
   wekws::InferenceStats stats(kSampleRate, feature_config.frame_length,
                               feature_config.frame_shift);
 
-  // 启动录音线程，将采集到的 PCM 连续送入特征流水线。
+  // 启动录音线程，将采集到的 PCM 连续送入音频特征调度器。
   recorder.Start(
       &g_exiting,
       [&](const std::vector<int16_t>& pcm) {
@@ -249,7 +254,7 @@ int main(int argc, char* argv[]) {
     // Each overlapping window already contains its acoustic history. Reusing
     // the model cache here would feed the overlapping history twice.
     spotter.Reset();
-    spotter.Forward(feature_window.features(), &probabilities);
+    spotter.Forward(feature_window.GetFeatures(), &probabilities);
     const auto inference_end = std::chrono::steady_clock::now();
 
     const int output_begin = feature_window.newest_start();
@@ -262,6 +267,7 @@ int main(int argc, char* argv[]) {
         feature_pipeline.NumQueuedFrames(), inference_start, inference_end);
     wekws::PrintInferenceResult(metrics, result, output_begin, stats);
 
+    // 唤醒检测器是否重新激活，连续10低于0.2的帧后重新激活。
     if (result.rearmed) {
       LOG(INFO) << "Wakeup detector re-armed: newest "
                 << kReleaseLowFramesRequired << " frames are below "

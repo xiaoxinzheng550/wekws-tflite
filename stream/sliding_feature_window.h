@@ -36,12 +36,14 @@ class SlidingFeatureWindow {
   bool Push(std::vector<std::vector<float>>* new_features);
 
   /**
-   * 函数名：features
+   * 函数名：GetFeatures
    * 输入：无
    * 输出：当前固定长度特征窗口的只读引用
    * 函数功能：为模型推理提供连续的特征输入
    */
-  const std::vector<std::vector<float>>& features() const { return window_; }
+  const std::vector<std::vector<float>>& GetFeatures() const {
+    return window_;
+  }
 
   /**
    * 函数名：newest_start

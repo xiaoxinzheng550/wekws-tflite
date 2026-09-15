@@ -37,6 +37,7 @@ void FeaturePipeline::AcceptWaveform(const std::vector<float>& wav) {
   std::vector<float> waves;
   waves.insert(waves.end(), remained_wav_.begin(), remained_wav_.end());
   waves.insert(waves.end(), wav.begin(), wav.end());
+  // 音频特征提取
   int num_frames = config_.feat_type == "mfcc"
                        ? mfcc_.Compute(waves, &feats)
                        : fbank_.Compute(waves, &feats);
